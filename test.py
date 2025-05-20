@@ -2,6 +2,7 @@ import numpy as np
 from scipy import stats
 from scipy.special import erfc
 
+# MT (https://numpy.org/doc/2.2/reference/random/generator.html#numpy.random.Generator)
 np.random.seed(42)
 
 def test_normal_distribution():
@@ -26,13 +27,20 @@ def dft_test(bits):
   p_value = erfc(abs(d) / np.sqrt(2.0))
   return p_value, (p_value >= 0.05)
 
-def test_fourier(n_bits=1000000):
-  # generate bits (uniform [0,1))
-  raw = np.random.rand(n_bits)
-  bits = (raw > 0.5).astype(int)
+def second_level_uniformity_test(p_values, significance_level=0.01):
+  num_bins = 10
+  expected = len(p_values) / num_bins
+  hist, _ = np.histogram(p_values, bins=num_bins, range=(0, 1))
+  chi2_stat, p = stats.chisquare(hist, f_exp=[expected] * num_bins)
+  return p, (p >= significance_level)
 
-  p_val, passed = dft_test(bits)
-  print(f"DFT test: p-value = {p_val:.4f} -> {'PASS' if passed else 'FAIL'}")
+def test_fourier(n_bits=1000000):
+  # 1st level: get p-values
+  p_values = [dft_test(np.random.rand(n_bits) > 0.5)[0] for _ in range(100)]
+
+  # 2nd level: check uniformity of p-values
+  p, passed = second_level_uniformity_test(p_values)
+  print(f"2nd-level uniformity test: p={p:.4f} -> {'PASS' if passed else 'FAIL'}")
 
 if __name__ == "__main__":
   print("Testing normal distribution:")
